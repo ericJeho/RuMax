@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Design tokens
+   One palette expressed as RGB triplets so Tailwind's `<alpha-value>` syntax works.
+   Three themes share the same token names: light (default), dark (.dark) and a
+   high-contrast mode (.contrast-high) offered on the Accessibility page.
+   --------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --rx-bg: 250 250 252;
+    --rx-surface: 255 255 255;
+    --rx-surface-2: 244 245 250;
+    --rx-border: 224 226 236;
+    --rx-fg: 14 16 27;
+    --rx-muted: 96 101 122;
+
+    --rx-brand: 44 62 168;
+    --rx-brand-fg: 255 255 255;
+    --rx-brand-soft: 233 236 252;
+    --rx-accent: 173 116 40;
+    --rx-accent-soft: 250 241 226;
+
+    --rx-success: 22 122 78;
+    --rx-warning: 176 106 8;
+    --rx-danger: 190 40 48;
+    --rx-info: 20 116 168;
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+
+    --rx-glass: 255 255 255;
+    --rx-glass-alpha: 0.72;
+  }
+
+  .dark {
+    --rx-bg: 9 11 20;
+    --rx-surface: 17 20 33;
+    --rx-surface-2: 25 29 45;
+    --rx-border: 44 49 70;
+    --rx-fg: 236 238 246;
+    --rx-muted: 152 158 180;
+
+    --rx-brand: 124 143 255;
+    --rx-brand-fg: 10 12 22;
+    --rx-brand-soft: 30 37 74;
+    --rx-accent: 226 176 92;
+    --rx-accent-soft: 48 39 22;
+
+    --rx-success: 62 190 130;
+    --rx-warning: 232 168 62;
+    --rx-danger: 240 110 116;
+    --rx-info: 92 186 232;
+
+    --rx-glass: 17 20 33;
+    --rx-glass-alpha: 0.66;
+  }
+
+  /* WCAG 2.2 AAA-oriented mode: pure contrasts, no translucency, visible borders. */
+  .contrast-high {
+    --rx-bg: 255 255 255;
+    --rx-surface: 255 255 255;
+    --rx-surface-2: 255 255 255;
+    --rx-border: 0 0 0;
+    --rx-fg: 0 0 0;
+    --rx-muted: 33 33 33;
+    --rx-brand: 0 0 160;
+    --rx-brand-soft: 255 255 255;
+    --rx-accent: 120 60 0;
+    --rx-glass-alpha: 1;
+  }
+
+  .dark.contrast-high {
+    --rx-bg: 0 0 0;
+    --rx-surface: 0 0 0;
+    --rx-surface-2: 0 0 0;
+    --rx-border: 255 255 255;
+    --rx-fg: 255 255 255;
+    --rx-muted: 235 235 235;
+    --rx-brand: 160 190 255;
+    --rx-brand-fg: 0 0 0;
+    --rx-brand-soft: 0 0 0;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display tracking-tight text-fg;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Focus is never removed — only restyled. Keyboard users must always see where
+     they are (WCAG 2.4.7 / 2.4.11). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg;
+  }
+
+  ::selection {
+    @apply bg-brand/25;
+  }
+
+  /* Respect the OS "reduce motion" setting: animation becomes an instant state change
+     rather than being merely shortened. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .rx-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Glassmorphism surface used for the header, floating cards and dashboard tiles. */
+  .glass {
+    background: rgb(var(--rx-glass) / var(--rx-glass-alpha));
+    @apply border border-border/70 backdrop-blur-xl backdrop-saturate-150;
+  }
+
+  .card {
+    @apply rounded-2xl border border-border bg-surface shadow-sm;
+  }
+
+  .card-hover {
+    @apply transition duration-300 hover:-translate-y-1 hover:shadow-lift;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition
+      disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand text-brand-fg hover:brightness-110 active:brightness-95;
+  }
+
+  .btn-secondary {
+    @apply btn border border-border bg-surface text-fg hover:bg-surface-2;
+  }
+
+  .btn-ghost {
+    @apply btn text-fg hover:bg-surface-2;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger text-white hover:brightness-110;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-fg
+      placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-fg;
+  }
+
+  .hint {
+    @apply mt-1 text-xs text-muted;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .prose-rx {
+    @apply text-[15px] leading-7 text-muted [&_a]:text-brand [&_a]:underline [&_a]:underline-offset-4
+      [&_h2]:mb-3 [&_h2]:mt-10 [&_h2]:text-2xl [&_h2]:text-fg
+      [&_h3]:mb-2 [&_h3]:mt-8 [&_h3]:text-lg [&_h3]:text-fg
+      [&_li]:mb-2 [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6
+      [&_p]:mb-4 [&_strong]:text-fg [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6;
+  }
+
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100]
+      focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-fg;
+  }
+
+  .table-rx {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .table-rx thead th {
+    @apply border-b border-border px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted;
+  }
+  .table-rx tbody td {
+    @apply border-b border-border/60 px-4 py-3 align-middle;
+  }
+  .table-rx tbody tr:hover {
+    @apply bg-surface-2/60;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--rx-border)) transparent;
+  }
+
+  /* Text scaling control offered in the accessibility toolbar. */
+  .text-scale-110 {
+    font-size: 110%;
+  }
+  .text-scale-125 {
+    font-size: 125%;
+  }
+}
+
+/* Print: transcripts, certificates, invoices and receipts must print cleanly. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .card {
+    border-color: #999;
+    box-shadow: none;
+  }
+}

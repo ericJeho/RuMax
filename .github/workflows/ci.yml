@@ -1,0 +1,144 @@
+name: CI
+
+# `push` is limited to the default branch on purpose. Triggering on every branch as
+# well as on pull_request runs the whole pipeline twice for each PR commit — the
+# container build alone takes six minutes — while telling us nothing the pull_request
+# run has not already told us.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint and test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rumax
+          POSTGRES_PASSWORD: rumax
+          POSTGRES_DB: rumax_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U rumax"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://rumax:rumax@localhost:5432/rumax_test?schema=public
+      AUTH_SECRET: ci-only-secret-value-not-used-in-any-deployment
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply schema to the test database
+        run: npx prisma db push --skip-generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Seed demonstration data
+        run: npm run db:seed
+
+      - name: Production build
+        run: npm run build
+
+      - name: Smoke test the running server
+        run: |
+          npm start &
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/health > /dev/null; then break; fi
+            sleep 2
+          done
+
+          echo "Health:"
+          curl -fsS http://localhost:3000/api/health
+
+          echo "Home page:"
+          curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3000/
+
+          echo "Certificate verification (seeded serial must verify):"
+          curl -fsS http://localhost:3000/api/certificates/RX-2025-DEMO-0001 | grep -q '"valid": *true'
+
+          echo "Portals must redirect an anonymous visitor:"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/portal)" = "307"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/admin)" = "307"
+
+          echo "GraphQL public schema responds:"
+          curl -fsS -X POST http://localhost:3000/api/graphql \
+            -H 'content-type: application/json' \
+            -d '{"query":"{ stats { students programs } }"}' | grep -q '"students"'
+
+  security:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Fails on high or critical advisories only; moderate findings are reported for
+      # triage without blocking every unrelated pull request.
+      - run: npm audit --audit-level=high
+
+  docker:
+    name: Build the container image
+    runs-on: ubuntu-latest
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: rumax/platform:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify the image starts and reports unhealthy without a database
+        run: |
+          # No DATABASE_URL is reachable here, so /api/health must return 503 rather
+          # than the container claiming to be ready.
+          docker run -d --name rumax-probe -p 3000:3000 \
+            -e AUTH_SECRET=ci-only-secret-value-not-used-in-any-deployment \
+            -e DATABASE_URL=postgresql://nobody@127.0.0.1:5432/none \
+            rumax/platform:${{ github.sha }}
+          sleep 12
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/health || true)
+          docker logs rumax-probe | tail -30
+          test "$code" = "503"
+          docker rm -f rumax-probe
