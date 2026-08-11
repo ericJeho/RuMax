@@ -35,7 +35,13 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   images: {
     formats: ['image/avif', 'image/webp'],
-    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+    // No remote hosts are allow-listed, deliberately. Next serves the /_next/image
+    // optimiser whether or not the application imports next/image, so a wildcard pattern
+    // here turns that endpoint into an open image proxy: anyone can make the server fetch
+    // an arbitrary URL and decode it through sharp/libvips. Nothing here loads a remote
+    // image through next/image — avatars use a plain <img> — so the correct list is
+    // empty. Add specific hosts if a component ever genuinely needs one.
+    remotePatterns: [],
   },
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
