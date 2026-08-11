@@ -14,19 +14,41 @@ verify the resulting certificate from a public URL with no account.
 
 ## Quick start
 
+Two paths. Both end at `http://localhost:3000` with a fully populated university.
+
+### With Supabase (hosted Postgres, free tier)
+
+The quickest way to get this running somewhere real. Full walkthrough:
+[`docs/SUPABASE.md`](docs/SUPABASE.md).
+
 ```bash
-cp .env.example .env.local          # set DATABASE_URL and AUTH_SECRET
+cp .env.example .env.local
+# Set DATABASE_URL (transaction pooler, :6543, with ?pgbouncer=true&connection_limit=1)
+#     DIRECT_URL   (session pooler, :5432 — migrations cannot use a pooler)
+#     AUTH_SECRET  (openssl rand -base64 48)
+
 npm install
-
-# bring up Postgres + Redis (or point DATABASE_URL at your own)
-docker compose up -d db redis
-
-npm run db:push                     # create the schema
-npm run db:seed                     # load a complete demonstration university
-npm run dev                         # http://localhost:3000
+npm run setup      # validates the config, applies migrations, seeds
+npm run dev
 ```
 
-Generate an auth secret with `openssl rand -base64 48`.
+### With local Postgres
+
+```bash
+cp .env.example .env.local          # defaults already point at Docker Compose
+npm install
+docker compose up -d db redis
+npm run setup
+npm run dev
+```
+
+`npm run setup` checks your connection strings *before* touching the database and names the
+specific problem if something is wrong — most hosted-Postgres failures otherwise surface as
+a hang or an unhelpful stack trace. Add `-- --no-seed` to apply the schema without loading
+demonstration data.
+
+> The seed **deletes all existing data** before loading the demonstration university. It is
+> for demo databases only.
 
 ### Demo accounts
 
@@ -92,12 +114,14 @@ languages · SEO with schema.org, sitemap and robots · Docker, Kubernetes and C
 
 | Command | Purpose |
 | --- | --- |
+| `npm run setup` | Validate config, apply migrations, seed — start here |
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build and serve |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest unit tests |
-| `npm run db:push` | Push the schema without a migration |
+| `npm run db:push` | Push the schema without a migration (development only) |
+| `npm run db:deploy` | Apply committed migrations — what a deployment runs |
 | `npm run db:migrate` | Create and apply a migration |
 | `npm run db:seed` | Load demonstration data |
 | `npm run db:reset` | Drop, recreate and reseed |
@@ -125,6 +149,7 @@ Next.js + NestJS split; the reasoning, and what would justify splitting it out l
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | ER diagram and every table explained |
 | [`docs/API.md`](docs/API.md) | REST and GraphQL reference |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Authentication, RBAC, GDPR/FERPA, threat notes |
+| [`docs/SUPABASE.md`](docs/SUPABASE.md) | Running on Supabase, and deploying to Vercel |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Docker, Kubernetes, scaling, pre-launch checklist |
 | [`docs/USER-GUIDE.md`](docs/USER-GUIDE.md) | Manuals for students, lecturers and administrators |
 

@@ -2,11 +2,12 @@
   "name": "rumax-global-digital-university",
   "version": "1.0.0",
   "private": true,
-  "description": "RuMax Global Digital University — Education Without Borders. Enterprise online university platform.",
+  "description": "RuMax Global Digital University \u2014 Education Without Borders. Enterprise online university platform.",
   "engines": {
     "node": ">=20.0.0"
   },
   "scripts": {
+    "setup": "tsx scripts/setup.ts",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
