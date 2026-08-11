@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# Local and small-deployment stack: app, Postgres, Redis.
+#
+#   docker compose up -d db redis     # start the data services alone (dev)
+#   docker compose up --build         # run the whole stack
+#   docker compose run --rm migrate   # apply migrations and seed
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rumax}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rumax}
+      POSTGRES_DB: ${POSTGRES_DB:-rumax}
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-rumax} -d ${POSTGRES_DB:-rumax}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Rate-limit counters and cached fragments are both reconstructible, so an
+    # eviction policy is safer than letting Redis run out of memory.
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save ''
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public&connection_limit=20
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET before starting the app}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+    ports:
+      - '3000:3000'
+
+  # One-shot job: apply migrations, then load demonstration data.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ['tools']
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
+      SEED_PASSWORD: ${SEED_PASSWORD:-RuMax#Demo2025}
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
+
+volumes:
+  db-data:

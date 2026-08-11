@@ -1,0 +1,220 @@
+# ---------------------------------------------------------------------------
+# RuMax platform — Kubernetes manifests
+#
+# Sized for the stated target of one million users. The assumptions behind these
+# numbers are written down in docs/DEPLOYMENT.md rather than left implicit here;
+# review them against your own load before adopting them.
+#
+#   kubectl apply -f k8s/
+# ---------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rumax
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rumax-config
+  namespace: rumax
+data:
+  NODE_ENV: 'production'
+  PORT: '3000'
+  NEXT_PUBLIC_SITE_URL: 'https://rumax.edu'
+  NEXT_PUBLIC_SITE_NAME: 'RuMax Global Digital University'
+  AUTH_TOKEN_TTL_HOURS: '12'
+  AUTH_COOKIE_NAME: 'rumax_session'
+---
+# Created out of band — never commit real secret values.
+#   kubectl -n rumax create secret generic rumax-secrets \
+#     --from-literal=DATABASE_URL='postgresql://…' \
+#     --from-literal=AUTH_SECRET="$(openssl rand -base64 48)" \
+#     --from-literal=REDIS_URL='redis://…'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rumax-secrets
+  namespace: rumax
+type: Opaque
+stringData:
+  DATABASE_URL: 'postgresql://rumax:CHANGE_ME@postgres-primary.rumax.svc:5432/rumax?schema=public&connection_limit=25&pool_timeout=20'
+  AUTH_SECRET: 'CHANGE_ME_48_BYTE_RANDOM_STRING'
+  REDIS_URL: 'redis://redis.rumax.svc:6379'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rumax-app
+  namespace: rumax
+  labels: { app: rumax-app }
+spec:
+  replicas: 6
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0 # never reduce capacity during a deploy
+  selector:
+    matchLabels: { app: rumax-app }
+  template:
+    metadata:
+      labels: { app: rumax-app }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      # Spread replicas across nodes so a single node failure cannot take out the
+      # whole service.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: rumax-app }
+      containers:
+        - name: app
+          image: ghcr.io/rumax/platform:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef: { name: rumax-config }
+            - secretRef: { name: rumax-secrets }
+          resources:
+            requests: { cpu: '250m', memory: '512Mi' }
+            limits: { cpu: '1500m', memory: '1Gi' }
+          # Startup probe first: a cold start with Prisma engine load can exceed the
+          # liveness threshold, and killing a pod that is merely slow to boot produces
+          # a restart loop that looks like a crash.
+          startupProbe:
+            httpGet: { path: /api/health, port: http }
+            failureThreshold: 20
+            periodSeconds: 3
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            # Liveness deliberately hits a static asset, not /api/health: a database
+            # outage should drain traffic (readiness) but must not restart every pod
+            # in the fleet, which would turn a recoverable outage into a cold start.
+            httpGet: { path: /icon.svg, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ['ALL'] }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rumax-app
+  namespace: rumax
+spec:
+  selector: { app: rumax-app }
+  ports:
+    - port: 80
+      targetPort: http
+      name: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rumax-app
+  namespace: rumax
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rumax-app
+  minReplicas: 6
+  maxReplicas: 60
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+  behavior:
+    scaleUp:
+      # Examination periods produce a near-vertical load spike; scaling up must be
+      # quick, and scaling back down slow enough not to thrash.
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 120
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rumax-app
+  namespace: rumax
+spec:
+  minAvailable: 4
+  selector:
+    matchLabels: { app: rumax-app }
+---
+# Runs once per release, before the new pods take traffic.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rumax-migrate
+  namespace: rumax
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/rumax/platform:latest
+          command: ['npx', 'prisma', 'migrate', 'deploy']
+          envFrom:
+            - secretRef: { name: rumax-secrets }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rumax
+  namespace: rumax
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+    nginx.ingress.kubernetes.io/proxy-body-size: '50m' # assignment uploads
+    nginx.ingress.kubernetes.io/limit-rps: '40'
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: ['rumax.edu', 'www.rumax.edu']
+      secretName: rumax-tls
+  rules:
+    - host: rumax.edu
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rumax-app
+                port: { number: 80 }
