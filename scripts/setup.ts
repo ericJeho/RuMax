@@ -149,6 +149,12 @@ function run(label: string, command: string) {
 run('Prisma client generated', 'npx prisma generate');
 run('Migrations applied', 'npx prisma migrate deploy');
 
+if (isSupabase) {
+  // The lockdown migration asserts its own result and fails the deploy if the revoke did
+  // not take, so reaching this line means the anon key cannot reach the schema.
+  ok('PostgREST access revoked — the anon key cannot reach the application schema');
+}
+
 const skipSeed = process.argv.includes('--no-seed');
 if (skipSeed) {
   warn('Skipping seed (--no-seed)');

@@ -91,6 +91,15 @@ contain an identifiable student.
 **Audit log.** Append-only. No code path updates or deletes a row. A log that can be
 quietly rewritten cannot answer "who changed this mark".
 
+**No second door onto the database.** Every one of the controls above assumes the
+application is the only way in. On a managed Postgres that offers a generic data API this
+has to be enforced, not assumed: Supabase grants its public `anon` role full DML on the
+`public` schema by default, which would make the audit log, the role matrix and the
+ownership checks all bypassable over PostgREST with a key that ships in client bundles. The
+migration `20260812035600_supabase_revoke_postgrest_access` revokes that access and enables
+row level security with no policies as a backstop. It is a no-op on plain PostgreSQL.
+[docs/SUPABASE.md](SUPABASE.md) has the measurements and the reasoning.
+
 ## Rate limiting
 
 Applied to every unauthenticated or expensive endpoint (see `docs/API.md` for the table).

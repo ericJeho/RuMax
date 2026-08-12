@@ -96,6 +96,61 @@ Verify a credential at `/verify` with serial **`RX-2025-DEMO-0001`** — no sign
 
 ---
 
+## The anon key, and why one migration exists only for Supabase
+
+Read this once even if you skip the rest. It is the one place where Supabase's defaults and
+Prisma's defaults compose into a hole.
+
+Supabase grants the `anon` and `authenticated` roles full DML on every table in the
+`public` schema, and sets matching default privileges so anything created later is granted
+the same way. Prisma creates its tables in `public`, and PostgreSQL leaves row level
+security off unless asked. Neither default is wrong on its own.
+
+Together they mean the project's **anon key is a full read/write credential for the entire
+university database** — password hashes, grades, invoices, applications, the audit log —
+reachable over PostgREST at `https://<ref>.supabase.co/rest/v1/<Table>`. That key is public
+by design: it ships in client bundles and is printed in your dashboard. PostgREST never
+sees the application's session, its role matrix, or its audit trail, so every control in
+`src/lib/rbac.ts` is bypassed by construction.
+
+This was measured, not assumed. On a fresh Supabase project, a table created exactly the
+way Prisma creates them granted `anon` SELECT, INSERT, UPDATE, DELETE and TRUNCATE, and the
+project's own security advisor reported it as `EXTERNAL` facing.
+
+`prisma/migrations/20260812035600_supabase_revoke_postgrest_access` closes it, and runs
+automatically as part of `npm run setup` or `npx prisma migrate deploy`. It applies two
+independent controls:
+
+1. **No privileges.** `anon` and `authenticated` are revoked everything in `public`, and
+   the default privileges for the `postgres` role are revoked too, so tables added by
+   future migrations are not granted either.
+2. **RLS on, with no policies.** If something ever re-grants table access — a later
+   migration, a dashboard action — row level security still denies those roles every row.
+   Prisma is unaffected: it connects as the table owner, and PostgreSQL exempts owners from
+   RLS unless `FORCE ROW LEVEL SECURITY` is set.
+
+The whole migration is guarded on the `anon` role existing, so on plain PostgreSQL — local
+development, Docker Compose, CI — it is a no-op. That guard is also why RLS is enabled only
+inside it: on a self-hosted database the application may legitimately connect as a role
+that is *not* the table owner, and enabling RLS there would deny it everything.
+
+The deliberate consequence is that **PostgREST, the Supabase client libraries and the
+auto-generated GraphQL endpoint will not work against this schema.** That is the intent, not
+a regression. The application talks to Postgres directly through Prisma; see
+[Why not Supabase Auth](#why-not-supabase-auth) below.
+
+A table added by a later migration inherits control 1 automatically but not control 2. That
+is safe — with no grants the table is not exposed at all, and the security advisor reports
+nothing for it — but if you want the backstop as well, add
+`ALTER TABLE "YourTable" ENABLE ROW LEVEL SECURITY;` to that migration.
+
+**What the advisor will say afterwards.** Expect `rls_enabled_no_policy` at INFO level for
+every table, and no `rls_disabled_in_public` at all. That is the intended end state: RLS on
+with no policies means those roles match no rows. Do not "fix" it by adding permissive
+policies — that would undo the control.
+
+---
+
 ## Deploying to Vercel
 
 Set the same variables in **Project settings → Environment variables**:
