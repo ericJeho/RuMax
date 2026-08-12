@@ -27,6 +27,8 @@ COPY . .
 # phase and validates for real at runtime.
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV SKIP_ENV_VALIDATION=1
+# Opt this build into `output: 'standalone'` — see next.config.ts.
+ENV BUILD_STANDALONE=1
 RUN npx prisma generate && npm run build
 
 # ------------------------------------------------------------------- runtime
