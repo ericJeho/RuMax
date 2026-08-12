@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, useInView, useReducedMotion } from 'framer-motion';
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 /**
  * Scroll-reveal wrapper.
@@ -147,22 +147,33 @@ export function CountUp({
 function Counter({ value, duration }: { value: number; duration: number }) {
   // A short, dependency-free tween: framer's animate() would work but this keeps the
   // component tree free of extra motion values for a purely decorative effect.
+  //
+  // The tween runs in an effect rather than during render. It used to start the animation
+  // frame loop inline in the component body, guarded by a ref — which worked, but mutated
+  // a ref and scheduled a side effect during render. Under StrictMode's double-render that
+  // starts two competing loops writing to the same node, and it is precisely the pattern
+  // concurrent rendering is allowed to break.
   const ref = useRef<HTMLSpanElement>(null);
-  const started = useRef(false);
 
-  if (typeof window !== 'undefined' && !started.current) {
-    started.current = true;
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    let frame = 0;
     const start = performance.now();
+    const format = new Intl.NumberFormat('en');
+
     const step = (now: number) => {
       const progress = Math.min(1, (now - start) / (duration * 1000));
       const eased = 1 - Math.pow(1 - progress, 3);
-      if (ref.current) {
-        ref.current.textContent = new Intl.NumberFormat('en').format(Math.round(value * eased));
-      }
-      if (progress < 1) requestAnimationFrame(step);
+      node.textContent = format.format(Math.round(value * eased));
+      if (progress < 1) frame = requestAnimationFrame(step);
     };
-    requestAnimationFrame(step);
-  }
+
+    frame = requestAnimationFrame(step);
+    // Cancelling on unmount stops a second mount from racing the first one's loop.
+    return () => cancelAnimationFrame(frame);
+  }, [value, duration]);
 
   return <span ref={ref}>0</span>;
 }

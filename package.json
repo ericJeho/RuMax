@@ -2,7 +2,7 @@
   "name": "rumax-global-digital-university",
   "version": "1.0.0",
   "private": true,
-  "description": "RuMax Global Digital University — Education Without Borders. Enterprise online university platform.",
+  "description": "RuMax Global Digital University \u2014 Education Without Borders. Enterprise online university platform.",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -10,7 +10,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -33,9 +33,9 @@
     "graphql-yoga": "^5.10.6",
     "jose": "^5.9.6",
     "lucide-react": "^0.469.0",
-    "next": "15.5.23",
-    "react": "19.0.0",
-    "react-dom": "19.0.0",
+    "next": "^16.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "recharts": "^2.15.0",
     "zod": "^3.24.1"
   },
@@ -46,16 +46,12 @@
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.18.0",
-    "eslint-config-next": "15.5.23",
+    "eslint-config-next": "^16.3.0",
     "postcss": "^8.5.26",
     "prisma": "^6.2.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^4.1.10"
-  },
-  "overrides": {
-    "postcss": "^8.5.26",
-    "sharp": "^0.35.3"
   }
 }
