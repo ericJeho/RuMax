@@ -34,6 +34,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://rumax:rumax@localhost:5432/rumax_test?schema=public
+      # No pooler in CI, so migrations use the same connection.
+      DIRECT_URL: postgresql://rumax:rumax@localhost:5432/rumax_test?schema=public
       AUTH_SECRET: ci-only-secret-value-not-used-in-any-deployment
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: '1'
@@ -52,8 +54,10 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Apply schema to the test database
-        run: npx prisma db push --skip-generate
+      # `migrate deploy` rather than `db push`: this is the command a real deployment
+      # runs, so CI proves the committed migrations actually build the schema from empty.
+      - name: Apply migrations to the test database
+        run: npx prisma migrate deploy
 
       - name: Typecheck
         run: npm run typecheck

@@ -51,6 +51,8 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public&connection_limit=20
+      # No pooler in this stack, so migrations use the same connection.
+      DIRECT_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
       REDIS_URL: redis://redis:6379
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET before starting the app}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
@@ -70,6 +72,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
       SEED_PASSWORD: ${SEED_PASSWORD:-RuMax#Demo2025}
     command: sh -c "npx prisma migrate deploy && npx prisma db seed"
 

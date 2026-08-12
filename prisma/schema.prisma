@@ -14,7 +14,16 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // Pooled connection used by the running application. On Supabase this is the
+  // transaction pooler (port 6543) with `?pgbouncer=true&connection_limit=1`.
   url      = env("DATABASE_URL")
+  // Direct, unpooled connection used only by `prisma migrate` and `prisma db push`.
+  // Migrations issue statements a transaction pooler cannot carry (advisory locks,
+  // CREATE TYPE outside a transaction), so running them through the pooler fails in
+  // ways that look like a hung connection. Prisma has no fallback for this, so
+  // DIRECT_URL must always be set — point it at DATABASE_URL when there is no pooler
+  // (plain local Postgres, Docker Compose, CI). Every config in this repo does.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------

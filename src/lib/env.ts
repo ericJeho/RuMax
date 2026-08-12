@@ -11,6 +11,9 @@ import { z } from 'zod';
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  // Only the Prisma CLI reads this (see prisma/schema.prisma `directUrl`); the running
+  // application always uses the pooled DATABASE_URL, so it is optional here.
+  DIRECT_URL: z.string().optional(),
   AUTH_SECRET: z.string().min(16, 'AUTH_SECRET must be at least 16 characters'),
   AUTH_TOKEN_TTL_HOURS: z.coerce.number().int().positive().default(12),
   AUTH_COOKIE_NAME: z.string().default('rumax_session'),
