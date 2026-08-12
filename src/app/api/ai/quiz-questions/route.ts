@@ -11,6 +11,9 @@ const schema = z.object({
   courseId: z.string().optional(),
 });
 
+// See the note in ../chat/route.ts: generation can outrun a serverless default timeout.
+export const maxDuration = 60;
+
 /** POST /api/ai/quiz-questions — draft question suggestions for the quiz builder. */
 export async function POST(request: Request) {
   try {

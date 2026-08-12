@@ -1,5 +1,9 @@
 # Deployment
 
+This covers the self-hosted paths — Docker and Kubernetes — where the app runs as a
+long-lived process you operate. For the hosted path, see [VERCEL.md](VERCEL.md); the
+environment, migration and pre-launch sections below apply there too.
+
 ## Requirements
 
 - Node.js 22+, PostgreSQL 16+

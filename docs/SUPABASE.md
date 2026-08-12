@@ -153,26 +153,14 @@ policies — that would undo the control.
 
 ## Deploying to Vercel
 
-Set the same variables in **Project settings → Environment variables**:
+Vercel is the usual front half of a Supabase deployment; the full walkthrough — including
+the Anthropic integration for the AI features and the region choice — is in
+[VERCEL.md](VERCEL.md).
 
-| Variable | Value |
-| --- | --- |
-| `DATABASE_URL` | Transaction pooler string with `?pgbouncer=true&connection_limit=1` |
-| `DIRECT_URL` | Session pooler string |
-| `AUTH_SECRET` | A fresh 48-byte random value — not the one from your laptop |
-| `NEXT_PUBLIC_SITE_URL` | `https://your-app.vercel.app` |
-
-The build runs `prisma generate && next build`. Apply migrations as a separate step rather
-than during the build — a build that migrates will race itself across concurrent
-deployments:
-
-```bash
-npx prisma migrate deploy
-```
-
-`connection_limit=1` matters more on Vercel than anywhere else: every serverless invocation
-is its own process, and without it a traffic spike will exhaust the Supabase connection
-quota.
+The one thing worth repeating here, because it is a Supabase quota rather than a Vercel
+one: `DATABASE_URL` must carry `?pgbouncer=true&connection_limit=1`. Every serverless
+invocation is its own process with its own Prisma pool, so without that limit a traffic
+spike exhausts the project's connection quota.
 
 ---
 

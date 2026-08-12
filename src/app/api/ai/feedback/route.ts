@@ -7,6 +7,9 @@ import { draftFeedback } from '@/lib/ai';
 
 const schema = z.object({ submissionId: z.string().min(1) });
 
+// See the note in ../chat/route.ts: generation can outrun a serverless default timeout.
+export const maxDuration = 60;
+
 /**
  * POST /api/ai/feedback — draft formative feedback for a lecturer to edit.
  *

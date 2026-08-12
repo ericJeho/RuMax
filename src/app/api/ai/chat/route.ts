@@ -15,6 +15,15 @@ const schema = z.object({
 });
 
 /**
+ * A serverless platform's default function timeout (10–15s on Vercel) is shorter than the
+ * 30s ceiling `lib/ai.ts` allows a Claude call, so a slow-but-successful generation would
+ * be killed mid-flight and surface as a 504 rather than falling back to the offline
+ * responder. 60s leaves room for that ceiling plus the surrounding database work. The
+ * setting is inert anywhere the process is long-lived (Docker, Kubernetes, `next start`).
+ */
+export const maxDuration = 60;
+
+/**
  * POST /api/ai/chat
  *
  * Rate limited per user rather than per IP — students share networks, and a per-IP limit

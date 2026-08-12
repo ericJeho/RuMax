@@ -32,7 +32,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  output: 'standalone',
+  // Standalone tracing is what keeps the container image small (see docs/DEPLOYMENT.md),
+  // but on Vercel it is dead weight: the platform runs its own output tracing and then
+  // discards the standalone server, so building it only lengthens every deploy. `VERCEL`
+  // is set by the platform on all builds, so Docker and Kubernetes are unaffected.
+  output: process.env.VERCEL ? undefined : 'standalone',
   images: {
     formats: ['image/avif', 'image/webp'],
     // No remote hosts are allow-listed, deliberately. Next serves the /_next/image

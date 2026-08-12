@@ -149,7 +149,8 @@ Next.js + NestJS split; the reasoning, and what would justify splitting it out l
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | ER diagram and every table explained |
 | [`docs/API.md`](docs/API.md) | REST and GraphQL reference |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Authentication, RBAC, GDPR/FERPA, threat notes |
-| [`docs/SUPABASE.md`](docs/SUPABASE.md) | Running on Supabase, and deploying to Vercel |
+| [`docs/SUPABASE.md`](docs/SUPABASE.md) | Running the database on Supabase |
+| [`docs/VERCEL.md`](docs/VERCEL.md) | Deploying to Vercel, including the Anthropic integration |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Docker, Kubernetes, scaling, pre-launch checklist |
 | [`docs/USER-GUIDE.md`](docs/USER-GUIDE.md) | Manuals for students, lecturers and administrators |
 

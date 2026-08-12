@@ -1,0 +1,12 @@
+# Nothing here affects the build output — Vercel traces what the app imports. This only
+# keeps the upload small so deploys start faster.
+node_modules
+.next
+coverage
+tests
+docs
+k8s
+Dockerfile
+.dockerignore
+docker-compose.yml
+*.log
