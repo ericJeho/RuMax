@@ -10,6 +10,8 @@
  * The generator is deterministic (fixed seed) so screenshots, tests and documentation
  * stay in step across machines. Re-running clears and rebuilds everything.
  */
+import { randomBytes } from 'node:crypto';
+
 import { PrismaClient, type Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -23,7 +25,29 @@ import {
 import { classify, gradePointFor, letterFor } from '../src/lib/grading';
 
 const prisma = new PrismaClient();
-const PASSWORD = process.env.SEED_PASSWORD ?? 'RuMax#Demo2025';
+
+/**
+ * The password every demonstration account is given.
+ *
+ * `SEED_PASSWORD` wins whenever it is set. The fallback depends on where this runs,
+ * because the two situations want opposite things:
+ *
+ *   - Locally, predictable is the point. You seed a throwaway database and sign straight
+ *     in, and there is nothing to protect.
+ *   - In production, predictable is an open door. A default written in this repository is
+ *     known to everyone who can read it, so a deployment that forgot to set
+ *     `SEED_PASSWORD` would come up with credentials anybody could use.
+ *
+ * Production therefore gets a random password, printed once when the seed finishes.
+ * Forgetting to configure it now locks the demonstration accounts rather than opening
+ * them to the internet.
+ */
+const LOCAL_DEFAULT_PASSWORD = 'rumax-local-dev';
+const PASSWORD_WAS_GENERATED =
+  !process.env.SEED_PASSWORD && process.env.NODE_ENV === 'production';
+const PASSWORD =
+  process.env.SEED_PASSWORD ||
+  (PASSWORD_WAS_GENERATED ? randomBytes(12).toString('base64url') : LOCAL_DEFAULT_PASSWORD);
 
 /* --------------------------------------------------------- deterministic rng */
 
@@ -1508,7 +1532,15 @@ async function main() {
   });
 
   console.log('\nSeed complete.\n');
-  console.log('  Demo accounts — password for all:', PASSWORD);
+  if (PASSWORD_WAS_GENERATED) {
+    // Printed once and never stored in plaintext — only the bcrypt hash reaches the
+    // database, so this line is the only chance to record it.
+    console.log('  SEED_PASSWORD was not set. A random password was generated for this run:');
+    console.log(`\n      ${PASSWORD}\n`);
+    console.log('  Copy it now — it is not recoverable. Set SEED_PASSWORD to choose your own.');
+  } else {
+    console.log('  Demo accounts — password for all:', PASSWORD);
+  }
   console.log('    admin@rumax.edu      Administrator (full ERP)');
   console.log('    registrar@rumax.edu  Registrar (admissions, records)');
   console.log('    finance@rumax.edu    Finance officer');

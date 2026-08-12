@@ -83,7 +83,9 @@ To apply the schema without loading demonstration data, use `npm run setup -- --
 
 ## 4. Sign in
 
-Every seeded account uses the password **`RuMax#Demo2025`**.
+Every seeded account uses the password you set as **`SEED_PASSWORD`** before running the
+seed. Set it to something of your own here — a Supabase project is reachable from the
+internet, and `admin@rumax.edu` is a real administrator account.
 
 | Email | What you will see |
 | --- | --- |

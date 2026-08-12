@@ -172,7 +172,7 @@ console.log('  Start the app:   npm run dev');
 console.log('  Then open:       http://localhost:3000\n');
 
 if (!skipSeed) {
-  console.log('  Sign in with any of these — password for all is RuMax#Demo2025:\n');
+  console.log('  Sign in with any of these, using the SEED_PASSWORD printed above:\n');
   console.log('    student@rumax.edu     the student portal');
   console.log('    lecturer@rumax.edu    course builder, marking, gradebook');
   console.log('    registrar@rumax.edu   admissions and student records');

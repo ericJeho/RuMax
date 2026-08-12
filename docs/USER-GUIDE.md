@@ -1,7 +1,7 @@
 # User manuals
 
 Three manuals in one file: students, lecturers, administrators. Every account uses the
-password `RuMax#Demo2025` on a seeded installation.
+password set as `SEED_PASSWORD` when the installation was seeded.
 
 ---
 

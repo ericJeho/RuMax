@@ -73,7 +73,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
       DIRECT_URL: postgresql://${POSTGRES_USER:-rumax}:${POSTGRES_PASSWORD:-rumax}@db:5432/${POSTGRES_DB:-rumax}?schema=public
-      SEED_PASSWORD: ${SEED_PASSWORD:-RuMax#Demo2025}
+      SEED_PASSWORD: ${SEED_PASSWORD:-rumax-local-dev}
     command: sh -c "npx prisma migrate deploy && npx prisma db seed"
 
 volumes:

@@ -15,7 +15,20 @@ const DEMO_ACCOUNTS = [
   { label: 'Administrator', email: 'admin@rumax.edu' },
 ];
 
-const DEMO_PASSWORD = 'RuMax#Demo2025';
+/**
+ * Whether to offer the demonstration account shortcuts at all.
+ *
+ * Off unless explicitly switched on. This block used to render unconditionally, with a
+ * comment asking whoever deployed the site to delete it first — which is not a control,
+ * it is a hope. Any public deployment that kept it was one click and one known password
+ * away from an administrator session. Defaulting to off makes forgetting safe and makes
+ * showing them a decision.
+ *
+ * The shortcuts now fill in the email only. The seed password is never shipped to the
+ * browser: it is chosen per deployment via `SEED_PASSWORD`, and a value compiled into the
+ * client bundle would be readable by anyone who opened the page, whatever this flag said.
+ */
+const SHOW_DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === 'true';
 
 export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
@@ -139,31 +152,29 @@ export function LoginForm({ next }: { next?: string }) {
         ))}
       </div>
 
-      {/* Demonstration credentials. Remove this block before a production deployment —
-          see docs/DEPLOYMENT.md, "Pre-launch checklist". */}
-      <div className="mt-8 rounded-xl border border-dashed border-border p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
-          Demonstration accounts
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {DEMO_ACCOUNTS.map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              onClick={() => {
-                setEmail(account.email);
-                setPassword(DEMO_PASSWORD);
-              }}
-              className="rounded-lg border border-border px-2.5 py-1 text-xs transition hover:border-brand hover:text-brand"
-            >
-              {account.label}
-            </button>
-          ))}
+      {SHOW_DEMO_ACCOUNTS ? (
+        <div className="mt-8 rounded-xl border border-dashed border-border p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+            Demonstration accounts
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => setEmail(account.email)}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs transition hover:border-brand hover:text-brand"
+              >
+                {account.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            Fills in the address only. The password is the <code>SEED_PASSWORD</code> this
+            installation was seeded with.
+          </p>
         </div>
-        <p className="mt-2 text-[11px] text-muted">
-          Password for all demo accounts: <code className="text-brand">{DEMO_PASSWORD}</code>
-        </p>
-      </div>
+      ) : null}
     </>
   );
 }
