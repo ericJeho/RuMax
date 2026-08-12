@@ -12,18 +12,18 @@ export function AssignmentComposer({ courses }: { courses: { id: string; label: 
   const router = useRouter();
   const toast = useToast();
 
-  const inTwoWeeks = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 16);
-
-  const [form, setForm] = useState({
+  // Computed inside the initialiser rather than in the component body: reading the clock
+  // during render makes the render impure, and the default only needs to be decided once.
+  const [form, setForm] = useState(() => ({
     courseId: courses[0]?.id ?? '',
     title: '',
     instructions: '',
     maxScore: 100,
     weight: 15,
-    dueAt: inTwoWeeks,
+    dueAt: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 16),
     allowLate: true,
     published: true,
-  });
+  }));
   const [pending, setPending] = useState(false);
 
   async function create() {
