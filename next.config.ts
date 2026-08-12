@@ -32,7 +32,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  output: 'standalone',
+  // Standalone tracing exists for the container image, which copies `.next/standalone`
+  // and runs its generated server.js. It is the wrong output everywhere else: Vercel and
+  // similar platforms detect the framework and do their own bundling, and Next's own docs
+  // say standalone is not needed there. Producing it anyway means every other build emits
+  // an artefact nothing consumes. The Dockerfile sets BUILD_STANDALONE=1; nothing else does.
+  output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
   images: {
     formats: ['image/avif', 'image/webp'],
     // No remote hosts are allow-listed, deliberately. Next serves the /_next/image

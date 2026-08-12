@@ -52,7 +52,8 @@ demonstration data.
 
 ### Demo accounts
 
-Every seeded account uses the password **`RuMax#Demo2025`**.
+Every seeded account uses the password you set as **`SEED_PASSWORD`** before seeding
+(locally, unset means `rumax-local-dev`).
 
 | Email | Role | What you can do |
 | --- | --- | --- |

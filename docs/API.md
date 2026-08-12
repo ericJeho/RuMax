@@ -40,7 +40,7 @@ someone else — otherwise the API confirms the existence of records the caller 
 ```bash
 curl -c jar -X POST localhost:3000/api/auth/login \
   -H 'content-type: application/json' \
-  -d '{"email":"student@rumax.edu","password":"RuMax#Demo2025"}'
+  -d '{"email":"student@rumax.edu","password":"$SEED_PASSWORD"}'
 ```
 
 ## Learning

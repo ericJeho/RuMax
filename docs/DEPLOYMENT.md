@@ -80,7 +80,9 @@ column, deploy code writing both, backfill, deploy code reading the new one, the
 Do not skip these. Each corresponds to something that is deliberately convenient in the
 demonstration build.
 
-- [ ] **Remove the demo account panel** from `src/app/(auth)/login/login-form.tsx`.
+- [x] ~~**Remove the demo account panel**~~ — no longer a manual step. It is hidden unless
+      `NEXT_PUBLIC_SHOW_DEMO_LOGINS=true`, and it fills in the address only; the password is
+      never compiled into the client bundle. Leave the flag unset in production.
 - [ ] **Do not run `db:seed`** against production — it deletes everything first.
 - [ ] Generate a fresh `AUTH_SECRET`; never reuse one across environments.
 - [ ] Change or delete every seeded account, including `admin@rumax.edu`.

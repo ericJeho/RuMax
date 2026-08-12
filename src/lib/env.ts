@@ -33,7 +33,10 @@ const schema = z.object({
   S3_PUBLIC_BASE_URL: z.string().optional(),
   ZOOM_CLIENT_ID: z.string().optional(),
   SMTP_HOST: z.string().optional(),
-  SEED_PASSWORD: z.string().default('RuMax#Demo2025'),
+  // No default: `prisma/seed.ts` decides the fallback, and it differs between local
+  // development and production on purpose. A default here would reintroduce the shared
+  // literal this was removed to avoid.
+  SEED_PASSWORD: z.string().optional(),
 });
 
 type Env = z.infer<typeof schema>;
