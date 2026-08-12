@@ -164,13 +164,42 @@ Set the same variables in **Project settings → Environment variables**:
 | `AUTH_SECRET` | A fresh 48-byte random value — not the one from your laptop |
 | `NEXT_PUBLIC_SITE_URL` | `https://your-app.vercel.app` |
 
-The build runs `prisma generate && next build`. Apply migrations as a separate step rather
-than during the build — a build that migrates will race itself across concurrent
-deployments:
+Apply migrations as a separate step rather than during the build — a build that migrates
+races itself across concurrent deployments, and a build environment is a poor place to hold
+database credentials:
 
 ```bash
 npx prisma migrate deploy
 ```
+
+### If you have no terminal
+
+That advice assumes a shell. Deploying straight from GitHub to Vercel there is no step
+between "import the repository" and "the site is live" in which to run anything, so the
+first deployment comes up against an empty database with no obvious way out.
+
+For that case, set one more variable:
+
+| Variable | Value |
+| --- | --- |
+| `SETUP_DATABASE_ON_BUILD` | `true` |
+
+The build then applies migrations and, **only if the database has no users**, loads the
+demonstration data. Both halves are deliberate:
+
+- `migrate deploy` is safe to re-run, and Prisma's advisory lock serialises concurrent
+  deployments rather than letting them corrupt each other.
+- The seed **deletes everything before loading**, so running it against a populated
+  database would destroy real records on every deployment. Guarding on an empty `User`
+  table makes this a first-run action rather than a standing hazard — leaving the flag on
+  is safe, and a populated database logs `skipping the seed` and moves on.
+
+Leave `SEED_PASSWORD` unset and the seed generates a random password and prints it. **Read
+it out of the Vercel build log** — it is hashed on the way into the database and cannot be
+recovered afterwards.
+
+Prefer the terminal route where you have one. This exists so that not having one is not a
+dead end.
 
 `connection_limit=1` matters more on Vercel than anywhere else: every serverless invocation
 is its own process, and without it a traffic spike will exhaust the Supabase connection
