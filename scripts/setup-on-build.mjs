@@ -50,12 +50,16 @@ if (!process.env.DIRECT_URL) {
   console.log('DIRECT_URL was unset; using DATABASE_URL for migrations.');
 }
 
-const run = (command) => execSync(command, { stdio: 'inherit', env: process.env });
+const run = (command, env = process.env) => execSync(command, { stdio: 'inherit', env });
 
 run('npx prisma migrate deploy');
 
+// Everything in this step talks over the direct connection, including the emptiness
+// check. They address the same database, but deciding whether to seed on one connection
+// and then seeding on another is the kind of inconsistency that only shows up when it
+// matters.
 const { PrismaClient } = await import('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL });
 
 try {
   const users = await prisma.user.count();
@@ -66,7 +70,12 @@ try {
     console.log('database. To reload demonstration data deliberately, run `npm run db:seed`.\n');
   } else {
     console.log('\nDatabase is empty — loading demonstration data.\n');
-    run('npx prisma db seed');
+    // Seed over the direct connection, for the same reason migrations use it. The seed
+    // writes thousands of rows and wraps the wipe in one large transaction, which is the
+    // workload a transaction pooler handles worst — and `connection_limit=1`, correct for
+    // serverless request handling, is actively counterproductive for a bulk load. Where
+    // there is no pooler DIRECT_URL equals DATABASE_URL and this changes nothing.
+    run('npx prisma db seed', { ...process.env, DATABASE_URL: process.env.DIRECT_URL });
   }
 } finally {
   await prisma.$disconnect();
