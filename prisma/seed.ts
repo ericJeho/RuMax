@@ -23,6 +23,7 @@ import {
   hashCertificate,
 } from '../src/lib/certificates';
 import { classify, gradePointFor, letterFor } from '../src/lib/grading';
+import { AUTHORED_COURSES } from './content/ai301-machine-learning';
 
 const prisma = new PrismaClient();
 
@@ -637,6 +638,36 @@ async function main() {
   ] as const;
 
   for (const [code, courseId] of courseIds.entries()) {
+    const authored = AUTHORED_COURSES.get(code);
+
+    // Courses with authored content get it verbatim. Everything else gets the template
+    // above, which demonstrates the structure without pretending to teach anything.
+    if (authored) {
+      for (const [moduleIndex, unit] of authored.modules.entries()) {
+        const module = await prisma.courseModule.create({
+          data: { courseId, title: unit.title, summary: unit.summary, position: moduleIndex },
+        });
+
+        for (const [lessonIndex, lesson] of unit.lessons.entries()) {
+          await prisma.lesson.create({
+            data: {
+              moduleId: module.id,
+              title: lesson.title,
+              type: lesson.type,
+              durationMins: lesson.durationMins,
+              position: lessonIndex,
+              body: lesson.body,
+              contentUrl:
+                lesson.type === 'VIDEO'
+                  ? `https://media.rumax.edu/${code.toLowerCase()}/u${moduleIndex + 1}-l${lessonIndex + 1}.mp4`
+                  : null,
+            },
+          });
+        }
+      }
+      continue;
+    }
+
     for (const [moduleIndex, [moduleTitle, lessons]] of MODULE_TEMPLATES.entries()) {
       const module = await prisma.courseModule.create({
         data: {
@@ -843,16 +874,22 @@ async function main() {
   ] as const;
 
   for (const [code, courseId] of courseIds.entries()) {
+    const authoredWork = AUTHORED_COURSES.get(code)?.assignments;
+
     for (const [index, [title, instructions]] of assignmentTitles.entries()) {
+      // Authored courses supply three assignments in the same order — marked, open and
+      // future — so the grading below continues to apply unchanged.
+      const brief = authoredWork?.[index];
+
       const assignment = await prisma.assignment.create({
         data: {
           courseId,
-          title: `${code} — ${title}`,
-          instructions,
-          maxScore: 100,
-          weight: index === 2 ? 0.3 : 0.15,
+          title: brief ? `${code} — ${brief.title}` : `${code} — ${title}`,
+          instructions: brief?.instructions ?? instructions,
+          maxScore: brief?.maxScore ?? 100,
+          weight: brief?.weight ?? (index === 2 ? 0.3 : 0.15),
           dueAt: daysFromNow(index === 0 ? -12 : index === 1 ? 9 : 45),
-          allowLate: index !== 2,
+          allowLate: brief?.allowLate ?? index !== 2,
         },
       });
 
@@ -882,23 +919,27 @@ async function main() {
 
   // Quizzes with a real question bank on the demo student's courses.
   for (const code of csCourses) {
+    const authoredQuiz = AUTHORED_COURSES.get(code)?.quiz;
+
     const quiz = await prisma.quiz.create({
       data: {
         courseId: courseIds.get(code)!,
-        title: `${code} Unit 1–2 quiz`,
-        description: 'Ten questions covering the first two units. Two attempts, best mark counts.',
+        title: authoredQuiz?.title ?? `${code} Unit 1–2 quiz`,
+        description:
+          authoredQuiz?.description ??
+          'Ten questions covering the first two units. Two attempts, best mark counts.',
         type: 'QUIZ',
-        durationMins: 30,
+        durationMins: authoredQuiz?.durationMins ?? 30,
         maxAttempts: 2,
         weight: 0.1,
-        questionsToServe: 5,
+        questionsToServe: authoredQuiz?.questionsToServe ?? 5,
         published: true,
         opensAt: daysFromNow(-10),
         closesAt: daysFromNow(20),
       },
     });
 
-    const bank = [
+    const genericBank = [
       ['Which complexity class describes binary search on a sorted array?', ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)'], 1, 'Each comparison halves the remaining search space.'],
       ['A hash table degrades to which complexity when every key collides?', ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'], 2, 'All entries end up in one bucket, so lookup becomes a linear scan.'],
       ['Normalisation to third normal form primarily removes which problem?', ['Slow joins', 'Transitive dependencies', 'Index bloat', 'Deadlocks'], 1, '3NF eliminates non-key attributes depending on other non-key attributes.'],
@@ -911,7 +952,21 @@ async function main() {
       ['REST treats a URL as…', ['A remote procedure', 'A resource identifier', 'A session token', 'A query plan'], 1, 'Resources are nouns; verbs come from the HTTP method.'],
     ] as const;
 
-    for (const [position, [prompt, options, correct, explanation]] of bank.entries()) {
+    const bank: readonly {
+      prompt: string;
+      options: readonly string[];
+      correct: number;
+      explanation: string;
+    }[] =
+      authoredQuiz?.questions ??
+      genericBank.map(([prompt, options, correct, explanation]) => ({
+        prompt,
+        options,
+        correct,
+        explanation,
+      }));
+
+    for (const [position, { prompt, options, correct, explanation }] of bank.entries()) {
       const question = await prisma.question.create({
         data: { quizId: quiz.id, prompt, type: 'MULTIPLE_CHOICE', points: 1, position, explanation },
       });
