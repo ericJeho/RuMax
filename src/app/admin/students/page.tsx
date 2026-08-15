@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 
 import { Badge, Card, CardBody, PageHeader, StatCard, Table, Td, Th } from '@/components/ui';
+import Link from 'next/link';
+
 import { requireRole } from '@/lib/auth';
+import { can } from '@/lib/rbac';
 import { prisma } from '@/lib/db';
 import { calculateCgpa } from '@/lib/grading';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -14,7 +17,10 @@ export default async function AdminStudentsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireRole('ADMIN', 'REGISTRAR', 'FINANCE');
+  const actor = await requireRole('ADMIN', 'REGISTRAR', 'FINANCE');
+  // Finance can see student records but not correct them, so the column is hidden
+  // rather than offered and then refused.
+  const canEdit = can(actor.role, 'student:write');
   const { q } = await searchParams;
 
   const students = await prisma.user.findMany({
@@ -86,6 +92,7 @@ export default async function AdminStudentsPage({
                 <Th className="text-right">Balance</Th>
                 <Th>Admitted</Th>
                 <Th className="text-right">Status</Th>
+                <Th className="text-right">{canEdit ? 'Actions' : ''}</Th>
               </tr>
             </thead>
             <tbody>
@@ -128,6 +135,16 @@ export default async function AdminStudentsPage({
                       >
                         {student.status.toLowerCase()}
                       </Badge>
+                    </Td>
+                    <Td className="text-right">
+                      {canEdit ? (
+                        <Link
+                          href={`/admin/students/${student.id}`}
+                          className="text-xs font-medium text-brand hover:underline"
+                        >
+                          Edit
+                        </Link>
+                      ) : null}
                     </Td>
                   </tr>
                 );

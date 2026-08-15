@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { audit, badRequest, handleError, notFound, ok, parseBody } from '@/lib/api';
 import { requireRole, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ROLE_LABELS, isStaff } from '@/lib/rbac';
 import { formatInvoiceNumber, formatStudentNumber } from '@/lib/certificates';
 
 const schema = z.object({
@@ -48,6 +49,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     if (body.status === 'ENROLLED' && !['OFFER_MADE', 'ACCEPTED'].includes(application.status)) {
       throw badRequest('An applicant must have an offer before they can be enrolled.');
+    }
+
+    // Enrolling rewrites the linked account's role to STUDENT. If that account belongs to
+    // staff, enrolment silently strips their authority — and this is not hypothetical: an
+    // application submitted while signed in as the administrator attaches to that account,
+    // and admitting it removed the deployment's only administrator.
+    //
+    // Refuse rather than guess. An applicant who is also staff needs a separate student
+    // account, which is a decision for a human, not a side effect of clicking Enrol.
+    if (body.status === 'ENROLLED' && application.user && isStaff(application.user.role)) {
+      throw badRequest(
+        `This application is attached to a staff account — ${application.user.email}, ` +
+          `${ROLE_LABELS[application.user.role]}. Enrolling it would remove that account's ` +
+          'staff access. Detach the application, or create a separate student account first.',
+      );
     }
 
     let studentNumber: string | null = null;

@@ -70,19 +70,18 @@ const LECTURER: Permission[] = [
   'library:borrow',
 ];
 
-const REGISTRAR: Permission[] = [
-  'course:read',
-  'student:read',
-  'student:write',
-  'registration:approve',
-  'application:review',
-  'grade:read:any',
-  'grade:publish',
-  'certificate:issue',
-  'announcement:write',
-  'analytics:read',
-  'program:write',
-];
+/**
+ * The registrar runs the university's academic operation, so this is the full permission
+ * set rather than a subset — records, admissions, curriculum, finance, library, research,
+ * certificates and reporting.
+ *
+ * The boundary between REGISTRAR and ADMIN is therefore no longer a list of permissions.
+ * It is enforced where it actually matters, in `canAssignRole` below: only an
+ * administrator may create or promote another administrator. Without that, `staff:write`
+ * would let a registrar mint themselves an ADMIN account, and the distinction between the
+ * two roles would exist only in the labels.
+ */
+const REGISTRAR: Permission[] = [...PERMISSIONS];
 
 const FINANCE: Permission[] = ['finance:read', 'finance:write', 'student:read', 'analytics:read'];
 
@@ -123,6 +122,31 @@ export function homeFor(role: Role): string {
     default:
       return '/apply/status';
   }
+}
+
+/** Roles that operate the institution rather than study at it. */
+export const STAFF_ROLES: readonly Role[] = ['LECTURER', 'REGISTRAR', 'FINANCE', 'ADMIN'];
+
+export function isStaff(role: Role): boolean {
+  return STAFF_ROLES.includes(role);
+}
+
+/**
+ * Whether `actor` may set someone's role to `target`.
+ *
+ * Administrators are the only role that can mint administrators. A registrar holds every
+ * permission, including `staff:write`, so without this check the two roles would be
+ * indistinguishable in practice — a registrar could create an ADMIN account, sign into it,
+ * and the permission matrix at /admin/permissions would be describing a boundary that does
+ * not exist.
+ *
+ * This is deliberately not expressed as a permission. Permissions answer "may this role
+ * touch staff records"; this answers "may this role expand its own authority", which is a
+ * different question and one that should not be grantable.
+ */
+export function canAssignRole(actor: Role, target: Role): boolean {
+  if (target === 'ADMIN') return actor === 'ADMIN';
+  return can(actor, 'staff:write');
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
