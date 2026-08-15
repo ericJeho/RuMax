@@ -1,0 +1,11 @@
+-- Add THESIS to the library item types.
+--
+-- A university library holds doctoral theses and distinction-graded dissertations, and
+-- they are not research papers: different length, different review process, and students
+-- look for them for a different reason (as exemplars of what a submission should look
+-- like). Filing them under RESEARCH_PAPER would mislabel them in the /library type filter.
+--
+-- `ADD VALUE IF NOT EXISTS` is idempotent, and adding an enum value is safe inside a
+-- transaction on PostgreSQL 12 and later provided the new value is not used in the same
+-- transaction. It is not — the seed runs separately.
+ALTER TYPE "LibraryItemType" ADD VALUE IF NOT EXISTS 'THESIS' AFTER 'PAST_PAPER';
