@@ -24,6 +24,7 @@ import {
 } from '../src/lib/certificates';
 import { classify, gradePointFor, letterFor } from '../src/lib/grading';
 import { AUTHORED_COURSES } from './content/ai301-machine-learning';
+import { LIBRARY_CATALOGUE } from './content/library-catalogue';
 
 const prisma = new PrismaClient();
 
@@ -1284,36 +1285,31 @@ async function main() {
 
   /* --- library, research, community, content ----------------------------- */
 
-  const libraryItems = [
-    ['Introduction to Algorithms', ['Cormen', 'Leiserson', 'Rivest', 'Stein'], 'EBOOK', ['Computing', 'Algorithms']],
-    ['Pattern Recognition and Machine Learning', ['Bishop'], 'EBOOK', ['Computing', 'Machine learning']],
-    ['Modern Epidemiology', ['Rothman', 'Greenland'], 'BOOK', ['Health', 'Epidemiology']],
-    ['Journal of African Data Science, Vol. 12', ['Editorial board'], 'JOURNAL', ['Research', 'Data science']],
-    ['Mini-grid design in rural Malawi: a field study', ['Silva', 'Banda'], 'RESEARCH_PAPER', ['Energy', 'Development']],
-    ['CS201 Past Examination Papers 2020–2025', ['Examinations Office'], 'PAST_PAPER', ['Computing', 'Revision']],
-    ['Human Rights Quarterly, Autumn Issue', ['Editorial board'], 'MAGAZINE', ['Law']],
-    ['Statistics Without Tears', ['Rowntree'], 'AUDIOBOOK', ['Statistics', 'Foundations']],
-    ['Teaching Online: An Evidence Review', ['Chirwa'], 'EBOOK', ['Education']],
-    ['Corporate Finance in Emerging Markets', ['Mensah'], 'BOOK', ['Business', 'Finance']],
-  ] as const;
+  // The catalogue lives in prisma/content/library-catalogue.ts — real publishers, real
+  // years, and an abstract written for each holding rather than generated from its title.
+  for (const entry of LIBRARY_CATALOGUE) {
+    // `available` must never exceed `copies`. It previously drew independently from the
+    // same range, so the library could offer more copies of a book than it owned.
+    const onLoan = entry.copies > 900 ? 0 : between(0, Math.min(entry.copies, 6));
 
-  for (const [title, authors, type, subjects] of libraryItems) {
     await prisma.libraryItem.create({
       data: {
-        slug: slug(title),
-        title,
-        authors: [...authors],
-        type,
-        subjects: [...subjects],
-        year: between(2015, 2025),
-        publisher: 'RuMax University Press',
-        abstract: `${title} — held in the RuMax Digital Library and available to all registered students and staff.`,
-        copies: between(1, 40),
-        available: between(1, 40),
-        fileUrl: `/library/files/${slug(title)}.pdf`,
+        slug: slug(entry.title),
+        title: entry.title,
+        authors: entry.authors,
+        type: entry.type,
+        subjects: entry.subjects,
+        year: entry.year,
+        publisher: entry.publisher,
+        abstract: entry.abstract,
+        copies: entry.copies,
+        available: entry.copies - onLoan,
+        downloadable: entry.downloadable ?? true,
+        fileUrl: `/library/files/${slug(entry.title)}.pdf`,
       },
     });
   }
+  console.log(`  ✓ ${LIBRARY_CATALOGUE.length} library holdings`);
 
   const researchProjects = [
     ['Low-resource speech recognition for Southern African languages', 'Building open speech datasets and models for Chichewa, Tumbuka and Yao.', 'Gates Foundation', 480_000],
