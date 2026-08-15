@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Role } from '@prisma/client';
 
-import { PERMISSIONS, ROLE_LABELS, can, canAny, homeFor, permissionsFor } from '@/lib/rbac';
+import { PERMISSIONS, ROLE_LABELS, can, canAny, canAssignRole, homeFor, isStaff, permissionsFor } from '@/lib/rbac';
 import { passwordProblems } from '@/lib/password';
 
 const ROLES: Role[] = ['APPLICANT', 'STUDENT', 'ALUMNI', 'LECTURER', 'REGISTRAR', 'FINANCE', 'ADMIN'];
@@ -99,5 +99,50 @@ describe('passwordProblems', () => {
   it('rejects a long password that is missing a character class', () => {
     expect(passwordProblems('alllowercaseletters')).toContain('Include an uppercase letter');
     expect(passwordProblems('ALLUPPERCASE1!')).toContain('Include a lowercase letter');
+  });
+});
+
+describe('registrar authority', () => {
+  it('grants the registrar every permission, so the ERP is fully operable', () => {
+    for (const permission of PERMISSIONS) {
+      expect(can('REGISTRAR', permission)).toBe(true);
+    }
+  });
+
+  it('still separates registrar from administrator, via role assignment rather than permissions', () => {
+    // The registrar holds staff:write, so without canAssignRole they could mint an
+    // administrator account and the two roles would be identical in practice.
+    expect(can('REGISTRAR', 'staff:write')).toBe(true);
+    expect(canAssignRole('REGISTRAR', 'ADMIN')).toBe(false);
+    expect(canAssignRole('ADMIN', 'ADMIN')).toBe(true);
+  });
+
+  it('lets a registrar assign every non-administrator role', () => {
+    for (const role of ['APPLICANT', 'STUDENT', 'ALUMNI', 'LECTURER', 'REGISTRAR', 'FINANCE'] as const) {
+      expect(canAssignRole('REGISTRAR', role)).toBe(true);
+    }
+  });
+
+  it('does not let a lecturer or student assign roles at all', () => {
+    expect(canAssignRole('LECTURER', 'STUDENT')).toBe(false);
+    expect(canAssignRole('STUDENT', 'STUDENT')).toBe(false);
+    expect(canAssignRole('FINANCE', 'ADMIN')).toBe(false);
+  });
+});
+
+describe('isStaff', () => {
+  it('counts the operating roles as staff', () => {
+    expect(isStaff('LECTURER')).toBe(true);
+    expect(isStaff('REGISTRAR')).toBe(true);
+    expect(isStaff('FINANCE')).toBe(true);
+    expect(isStaff('ADMIN')).toBe(true);
+  });
+
+  it('does not count applicants, students or alumni as staff', () => {
+    // Admissions relies on this: enrolling an application attached to a staff account
+    // would strip that account's authority, so enrolment refuses when isStaff is true.
+    expect(isStaff('APPLICANT')).toBe(false);
+    expect(isStaff('STUDENT')).toBe(false);
+    expect(isStaff('ALUMNI')).toBe(false);
   });
 });
