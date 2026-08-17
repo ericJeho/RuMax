@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 
 import { LoginForm } from './login-form';
 import { getSessionClaims } from '@/lib/auth';
+import { configuredProviders } from '@/lib/oauth';
 import { homeFor } from '@/lib/rbac';
 
 export const metadata: Metadata = {
@@ -15,12 +16,13 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
   const claims = await getSessionClaims();
   if (claims) redirect(homeFor(claims.role));
 
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
+  const providers = configuredProviders();
 
   return (
     <>
@@ -29,7 +31,7 @@ export default async function LoginPage({
         Sign in to reach your courses, grades and university services.
       </p>
 
-      <LoginForm next={next} />
+      <LoginForm next={next} providers={providers} oauthError={error} />
 
       <p className="mt-8 text-sm text-muted">
         New to RuMax?{' '}
