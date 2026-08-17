@@ -141,6 +141,17 @@ export function VerifyForm({ initialSerial }: { initialSerial?: string }) {
                 <Row label="Accreditation" value={result.issuer.accreditation} />
               </dl>
 
+              {/* Someone checking a serial usually wants to see the document it belongs to,
+                  not just confirmation that it exists. */}
+              <a
+                href={`/certificates/${result.serial}`}
+                target="_blank"
+                rel="noopener"
+                className="btn-secondary mt-5 inline-flex text-sm"
+              >
+                View the certificate
+              </a>
+
               <div className="mt-6 border-t border-border pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted">
                   Cryptographic record
