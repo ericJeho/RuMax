@@ -96,9 +96,19 @@ export default async function CertificatesPage() {
                   <Link href={`/verify/${certificate.serial}`} className="btn-secondary text-sm">
                     Open verification page
                   </Link>
-                  <a href={`/api/certificates/${certificate.serial}`} className="btn-primary text-sm" download>
-                    Download
+                  <a href={`/api/certificates/${certificate.serial}`} className="btn-secondary text-sm" download>
+                    Download data
                   </a>
+                  {/* The printable document. Opens in its own tab because it is a page to
+                      be printed, not a panel within the portal. */}
+                  <Link
+                    href={`/certificates/${certificate.serial}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="btn-primary text-sm"
+                  >
+                    View certificate
+                  </Link>
                 </div>
               </CardBody>
             </Card>
