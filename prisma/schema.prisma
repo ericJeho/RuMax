@@ -115,6 +115,8 @@ model User {
 
   @@index([role, status])
   @@index([programId])
+  linkedAccounts LinkedAccount[]
+
 }
 
 /// Server-side session record. The JWT is stateless, but keeping a row per session
@@ -1188,4 +1190,29 @@ model SystemSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+enum AuthProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+/// A third-party identity linked to an account.
+///
+/// Keyed on (provider, providerId) rather than email, because email addresses change and
+/// are reassigned while the provider's subject identifier does not. Looking a returning
+/// user up by email would mean that anyone who later acquires their address inherits the
+/// account.
+model LinkedAccount {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider   AuthProvider
+  providerId String
+  email      String?
+  createdAt  DateTime     @default(now())
+  lastUsedAt DateTime?
+
+  @@unique([provider, providerId])
+  @@index([userId])
 }

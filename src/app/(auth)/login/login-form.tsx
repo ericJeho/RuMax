@@ -30,12 +30,36 @@ const DEMO_ACCOUNTS = [
  */
 const SHOW_DEMO_ACCOUNTS = process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === 'true';
 
-export function LoginForm({ next }: { next?: string }) {
+const OAUTH_ERRORS: Record<string, string> = {
+  cancelled: 'Sign-in was cancelled.',
+  expired: 'That sign-in attempt expired. Please try again.',
+  state_mismatch: 'That sign-in could not be verified. Please try again.',
+  exchange_failed: 'The provider could not complete sign-in. Please try again.',
+  profile_failed: 'The provider did not return enough information to sign you in.',
+  provider_not_configured: 'That provider is not enabled on this installation.',
+  unknown_provider: 'That provider is not recognised.',
+  account_suspended: 'That account is suspended. Contact the registry.',
+  link_requires_password:
+    'An account already exists for that email address, and your provider did not confirm you own it. ' +
+    'Sign in with your password, then link the provider from your profile.',
+};
+
+export function LoginForm({
+  next,
+  providers = [],
+  oauthError,
+}: {
+  next?: string;
+  providers?: { id: string; label: string }[];
+  oauthError?: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    oauthError ? (OAUTH_ERRORS[oauthError] ?? 'Sign-in failed. Please try again.') : null,
+  );
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: FormEvent) {
@@ -129,28 +153,35 @@ export function LoginForm({ next }: { next?: string }) {
         </Button>
       </form>
 
-      <div className="my-6 flex items-center gap-3 text-xs text-muted">
-        <span className="h-px flex-1 bg-border" />
-        or continue with
-        <span className="h-px flex-1 bg-border" />
-      </div>
+      {providers.length > 0 ? (
+        <>
+          <div className="my-6 flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            or continue with
+            <span className="h-px flex-1 bg-border" />
+          </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {['Google', 'Microsoft'].map((provider) => (
-          <button
-            key={provider}
-            type="button"
-            onClick={() =>
-              setError(
-                `${provider} sign-in is configured through OAuth. Set ${provider.toUpperCase()}_CLIENT_ID and ${provider.toUpperCase()}_CLIENT_SECRET to enable it.`,
-              )
-            }
-            className="rounded-xl border border-border py-2.5 text-sm font-medium transition hover:bg-surface-2"
-          >
-            {provider}
-          </button>
-        ))}
-      </div>
+          <div className={providers.length > 1 ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
+            {providers.map((provider) => (
+              <a
+                key={provider.id}
+                // A link, not a fetch: the provider redirects the browser, so this has to
+                // be a full navigation rather than an XHR.
+                href={`/api/auth/oauth/${provider.id.toLowerCase()}${
+                  next ? `?next=${encodeURIComponent(next)}` : ''
+                }`}
+                className="rounded-xl border border-border py-2.5 text-center text-sm font-medium transition hover:bg-surface-2"
+              >
+                {provider.label}
+              </a>
+            ))}
+          </div>
+
+          <p className="mt-3 text-center text-xs text-muted">
+            Signing in with a provider for the first time creates an applicant account.
+          </p>
+        </>
+      ) : null}
 
       {SHOW_DEMO_ACCOUNTS ? (
         <div className="mt-8 rounded-xl border border-dashed border-border p-4">
